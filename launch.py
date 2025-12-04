@@ -1,4 +1,4 @@
-from configs import USERNAME, DOWNLOAD_DIR
+from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB
 import json 
 from downloader import version_data, json_path, release_version, latest_release
 import uuid 
@@ -16,9 +16,6 @@ def build_class_path():
 
     classpath = os.pathsep.join(libs + [client_path])
     return classpath
-     
-MAX_RAM_GB = 3
-MIN_RAM_GB = 3
 
 RAM_ARGS = f'-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G'   
 
