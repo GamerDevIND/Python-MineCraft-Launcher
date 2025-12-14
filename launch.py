@@ -1,6 +1,6 @@
-from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB
+from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION
 import json 
-from downloader import version_data, json_path, release_version, latest_release
+from downloader import version_data, json_path
 import uuid 
 import subprocess 
 import os 
@@ -29,7 +29,7 @@ if version_data and json_path:
         main_class = json_file['mainClass'] 
         uuid_offline = str(uuid.uuid4()) 
         asset_index = json_file['assetIndex']['id'] 
-        version_id = latest_release
+        version_id = DESIRED_VERSION
         print('Success. Launching') 
         launch_command = ( 
             f'java {RAM_ARGS} '

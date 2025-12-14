@@ -3,7 +3,7 @@ import json
 import os
 import hashlib
 import zipfile
-from configs import DOWNLOAD_DIR
+from configs import DOWNLOAD_DIR, DESIRED_VERSION
 
 MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -187,15 +187,18 @@ def unzip_file(full_data):
 
 manifest = get_version_manifest()
 
-release_version = '1.21.8'
-
 if manifest:
-    release_version = '1.21.8'
     latest_release = manifest['latest']['release']
 
-    version_data,json_path = download_version_data(latest_release, manifest)
+    avaliable_versions = []
 
-def downlaod():
+    for v in manifest['versions']:
+        if v['id']:
+            avaliable_versions.append(v['id'])
+            if v['id'] == DESIRED_VERSION:
+                version_data, json_path = download_version_data(DESIRED_VERSION, manifest)
+
+def downlaod(json_path):
     if json_path:
         os.makedirs(f'{DOWNLOAD_DIR}/client', exist_ok=True)
         os.makedirs(f'{DOWNLOAD_DIR}/client/JAR', exist_ok=True)
@@ -217,4 +220,5 @@ def downlaod():
         print('Error: no json path.')
 
 if __name__ == '__main__':
-    downlaod()
+    if json_path:
+        downlaod(json_path=json_path)
