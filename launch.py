@@ -19,8 +19,7 @@ def build_class_path():
     classpath = os.pathsep.join(libs + [client_path])
     return classpath
 
-def create_profile_json(username, version_id):
-    """Creates a standard launcher_profiles.json for compatibility."""
+def create_profile_json(username, version_id):
     profile_data = {
         "profiles": {
             "CustomProfile": {
