@@ -3,7 +3,7 @@ import json
 import os
 import hashlib
 import zipfile
-from configs import DOWNLOAD_DIR, DESIRED_VERSION
+from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE
 
 MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
@@ -38,8 +38,20 @@ def download_version_data(version_id, version_manifest):
     return None, None
 
 def download_and_verify(url, expected_hash, download_path, name):
+    if os.path.exists(download_path) and expected_hash:
+        try:
+            hasher = hashlib.sha1()
+            with open(download_path, 'rb') as f:
+                while chunk := f.read(8192):
+                    hasher.update(chunk)
+            
+            if hasher.hexdigest().lower() == expected_hash.lower():
+                print(f"Skipping {name}: already exists and verified.")
+                return True
+        except Exception:
+            pass
+
     hasher = hashlib.sha1()
-    
     try:
         print(f'Downloading {name} from {url}')
         response = requests.get(url, stream=True)
@@ -56,29 +68,25 @@ def download_and_verify(url, expected_hash, download_path, name):
                 f.write(chunk)
                 if expected_hash:
                     hasher.update(chunk)
-        
+
         if expected_hash:
             hashed = hasher.hexdigest()
             if expected_hash.lower() == hashed.lower():
-                print(f'Hashing for {name} was a success. File saved to {download_path}')
+                print(f'Hashing success for {name}.')
                 return True
             else:
-                print(f'Hashing for {name} got fucked. Expected: {expected_hash}, Got: {hashed}')
-                os.remove(download_path)
+                print(f'Hashing FAILED for {name}. Expected: {expected_hash}, Got: {hashed}')
+                if os.path.exists(download_path):
+                    os.remove(download_path)
                 return False
         else:
-            if os.path.exists(download_path):
-                print(f'No hash to verify for {name}. File saved to {download_path}')
-                return True
-            else:
-                print(f'{name} download failed and file does not exist.')
-                return False
+            print(f'No hash to verify for {name}. File saved.')
+            return True
             
     except IOError as e:
         print(f"Error writing file {download_path}: {e}")
         return False
 
-    
 def download_files(full_data, only_client=True, only_server=False, download_mappings=False):
     success = True
     download_data = full_data['downloads']
@@ -179,7 +187,7 @@ def unzip_file(full_data):
     libs = full_data['libraries']
 
     for lib in libs:
-        if 'natives-windows' in lib['downloads']['artifact']['path']:
+        if OS_TYPE in lib['downloads']['artifact']['path']:
             jar_path = os.path.join(DOWNLOAD_DIR, 'client', 'JAR', 'libraries', lib['downloads']['artifact']['path'])
             print(f"Extracting natives from: {os.path.basename(jar_path)}...")
             with zipfile.ZipFile(jar_path, 'r') as zf:
