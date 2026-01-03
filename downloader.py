@@ -9,6 +9,17 @@ MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
 os.makedirs(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION), exist_ok=True)
 
+def read_profile_json():
+
+    profile_path = os.path.join(DOWNLOAD_DIR, 'launcher_profiles.json')
+
+    if os.path.exists(profile_path):
+
+        with open(profile_path, 'r') as f:
+            return json.load(f)
+        
+    return None
+
 def get_version_manifest():
     try:
         response = requests.get(MANIFEST_URL)
@@ -192,7 +203,13 @@ if __name__ == '__main__':
     if manifest:
         version_data, json_path = download_version_data(DESIRED_VERSION, manifest)
         
-        if version_data and json_path:
+        profiles_data = read_profile_json()
+        if profiles_data:
+            print(f"Found launcher_profiles.json with {len(profiles_data.get('profiles', {}))} profiles.")
+        else:
+            print("No launcher_profiles.json found or file is empty.")
+
+        if version_data and json_path and profiles_data and profiles_data.get('lastVersionId') != DESIRED_VERSION:
             download_files(version_data)
             download_assets(version_data)
             extract_natives(version_data)
