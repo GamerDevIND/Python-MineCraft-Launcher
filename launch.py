@@ -1,82 +1,105 @@
-from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION
 import json 
-from downloader import version_data, json_path
 import uuid 
 import subprocess 
 import os 
+from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION
 
-def build_class_path():
-    base_lib_dir = os.path.join(DOWNLOAD_DIR, 'client', 'JAR', 'libraries')
-    libs = []
+json_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, f"{DESIRED_VERSION}.json")
+client_jar = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+natives_dir = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'natives')
 
-    for root, _, files in os.walk(base_lib_dir):
-        for file in files:
-            if file.endswith('.jar'):
-                libs.append(os.path.join(root, file))
+if not os.path.exists(json_path):
+    print(f"❌ Error: Metadata for {DESIRED_VERSION} not found at {json_path}")
+    exit(1)
 
-    client_path = os.path.join(DOWNLOAD_DIR, 'client', 'JAR', 'client.jar')
+with open(json_path, 'r') as f:
+    version_data = json.load(f)
+
+def build_class_path(json_file):
+    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
+    libs_to_load = []
+
+    for lib in json_file['libraries']:
+        if 'downloads' in lib and 'artifact' in lib['downloads']:
+            lib_path = os.path.join(lib_base, lib['downloads']['artifact']['path'])
+            if os.path.exists(lib_path):
+                libs_to_load.append(lib_path)
     
-    classpath = os.pathsep.join(libs + [client_path])
-    return classpath
+    return os.pathsep.join(libs_to_load + [client_jar])
 
-def create_profile_json(username, version_id):
-    profile_data = {
-        "profiles": {
-            "CustomProfile": {
-                "name": f"Vanilla - {version_id}",
-                "gameDir": os.path.abspath(DOWNLOAD_DIR),
-                "lastVersionId": version_id,
-                "javaArgs": f"-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G",
-                "type": "custom"   
-            }
-        },
-        "selectedProfile": "CustomProfile",
-        "clientToken": str(uuid.uuid4()),
-        "authenticationDatabase": {}
+def read_profile_json():
+
+    profile_path = os.path.join(DOWNLOAD_DIR, 'launcher_profiles.json')
+
+    if os.path.exists(profile_path):
+
+        with open(profile_path, 'r') as f:
+            return json.load(f)
+        
+    return None
+
+def create_profile_json(version_id):
+    existing_data = read_profile_json()
+    profile_key = f"Profile-{version_id}"
+    
+    profile_content = {
+        "name": f"Vanilla - {version_id}",
+        "gameDir": os.path.abspath(os.path.join(DOWNLOAD_DIR, version_id)),
+        "lastVersionId": version_id,
+        "javaArgs": f"-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G",
+        "type": "custom",
+        "created": str(uuid.uuid4())[:8]
     }
+
+    if existing_data:
+        if existing_data.get("profiles", {}).get(profile_key) == profile_content:
+            return
+        data_to_save = existing_data
+    else:
+        data_to_save = {
+            "profiles": {},
+            "selectedProfile": "",
+            "clientToken": str(uuid.uuid4()),
+            "authenticationDatabase": {}
+        }
+
+    data_to_save["profiles"][profile_key] = profile_content
+    data_to_save["selectedProfile"] = profile_key
 
     profile_path = os.path.join(DOWNLOAD_DIR, 'launcher_profiles.json')
     with open(profile_path, 'w') as f:
-        json.dump(profile_data, f, indent=4)
-    print(f"Profile JSON created at: {profile_path}")
+        json.dump(data_to_save, f, indent=4)
+    print(f"✅ Profile for {version_id} updated in: {profile_path}")
 
-
-if version_data and json_path: 
-    with open(json_path, 'r') as f: 
-        json_file = json.load(f) 
-        
-    classpath = build_class_path() 
-    main_class = json_file['mainClass'] 
-    asset_index = json_file['assetIndex']['id']
-    natives_dir = os.path.join(DOWNLOAD_DIR, 'client', 'natives') 
+if version_data: 
+    classpath = build_class_path(version_data) 
+    main_class = version_data['mainClass'] 
+    asset_index = version_data['assetIndex']['id']
     uuid_offline = str(uuid.uuid4()) 
-    ram_args = f'-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G'
 
-    create_profile_json(USERNAME, DESIRED_VERSION)
+    create_profile_json(DESIRED_VERSION)
+    cmd = [
+        "java",
+        f"-Xmx{MAX_RAM_GB}G",
+        f"-Xms{MIN_RAM_GB}G",
+        f"-Djava.library.path={natives_dir}",
+        "-cp", classpath,
+        main_class,
+        "--version", DESIRED_VERSION,
+        "--gameDir", os.path.abspath(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION)),
+        "--assetsDir", os.path.abspath(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, "assets")),
+        "--assetIndex", asset_index,
+        "--uuid", uuid_offline,
+        "--accessToken", "0",
+        "--userType", "legacy",
+        "--versionType", "release",
+        "--username", USERNAME
+    ]
 
-    launch_command = ( 
-        f'java {ram_args} '
-        f'-Djava.library.path="{natives_dir}" ' 
-        f'-cp "{classpath}" ' 
-        f'{main_class} ' 
-        f'--version {DESIRED_VERSION} ' 
-        f'--gameDir "{DOWNLOAD_DIR}" ' 
-        f'--assetsDir "{DOWNLOAD_DIR}/assets" ' 
-        f'--assetIndex {asset_index} ' 
-        f'--uuid {uuid_offline} ' 
-        f'--accessToken 0 ' 
-        f'--userType legacy ' 
-        f'--versionType release ' 
-        f'--username {USERNAME} ' 
-        f'--launchTarget {main_class}' 
-    ) 
-    
     with open('launcher.log', 'w') as log_file: 
-        print('log file opened')
-        print('Launching client...')
+        print('Log file opened at launcher.log')
         try:
-            subprocess.run(launch_command, stderr=subprocess.STDOUT, stdout=log_file, shell=True, check=True)
+            print(f"Launching Minecraft {DESIRED_VERSION}...")
+            subprocess.run(cmd, stderr=subprocess.STDOUT, stdout=log_file, check=True)
         except subprocess.CalledProcessError as e:
-            print(f"❌ Game crashed or failed to start. Check launcher.log for details.")
-else:
-    print("❌ Error: Missing version data or JSON path. Run downloader first.")
+            print(f"❌ Game crashed. Check launcher.log for details.")

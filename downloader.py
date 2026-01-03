@@ -3,10 +3,11 @@ import json
 import os
 import hashlib
 import zipfile
-from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE
+from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE, arch_suffix
 
 MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION), exist_ok=True)
 
 def get_version_manifest():
     try:
@@ -27,7 +28,7 @@ def download_version_data(version_id, version_manifest):
             response.raise_for_status()
             version_data = response.json()
 
-            file_path = os.path.join(DOWNLOAD_DIR, f"{version_id}.json")
+            file_path = os.path.join(DOWNLOAD_DIR, version_id, f"{version_id}.json")
             with open(file_path, 'w') as f:
                 json.dump(version_data, f, indent=4)
             
@@ -51,7 +52,6 @@ def download_and_verify(url, expected_hash, download_path, name):
         except Exception:
             pass
 
-    hasher = hashlib.sha1()
     try:
         print(f'Downloading {name} from {url}')
         response = requests.get(url, stream=True)
@@ -63,6 +63,7 @@ def download_and_verify(url, expected_hash, download_path, name):
     os.makedirs(os.path.dirname(download_path), exist_ok=True)
 
     try:
+        hasher = hashlib.sha1()
         with open(download_path, 'wb') as f:
             for chunk in response.iter_content(chunk_size=(1024 * 8)):
                 f.write(chunk)
@@ -87,146 +88,114 @@ def download_and_verify(url, expected_hash, download_path, name):
         print(f"Error writing file {download_path}: {e}")
         return False
 
-def download_files(full_data, only_client=True, only_server=False, download_mappings=False):
-    success = True
-    download_data = full_data['downloads']
-    if only_client or (not only_client and not only_server):
-        url_jar = download_data['client']['url']
-        hash_jar = download_data['client']['sha1']
-        path_jar = os.path.join(DOWNLOAD_DIR,'client', 'JAR', 'client.jar')
-        if not download_and_verify(url_jar, hash_jar, path_jar, 'Client JAR'):
-            success = False
+def should_download(lib_entry):
+    rules = lib_entry.get('rules')
+    if not rules:
+        return True
 
-        if download_mappings and 'client_mappings' in download_data:
-            url_map = download_data['client_mappings']['url']
-            hash_map = download_data['client_mappings']['sha1']
-            path_map = os.path.join(DOWNLOAD_DIR, 'client', 'mappings', 'client.txt')
-            if not download_and_verify(url_map, hash_map, path_map, 'Client Mappings'):
-                success = False
+    allow = False
+    for rule in rules:
+        action = rule.get('action') 
+        os_rule = rule.get('os', {})
+        os_name = os_rule.get('name')
 
-    if only_server or (not only_client and not only_server):
-        if not 'server' in download_data:
-            print('Server data not found in the json')
-            success = False
-        else:
-            url_jar = download_data['server']['url']
-            hash_jar = download_data['server']['sha1']
-            path_jar = os.path.join(DOWNLOAD_DIR, 'server', 'JAR', 'server.jar')
-            if not download_and_verify(url_jar, hash_jar, path_jar, 'Server JAR'):
-                success = False
+        target_os = 'osx' if OS_TYPE == 'macos' else OS_TYPE
+
+        if os_name is None:
+            allow = (action == 'allow')
+        elif os_name == target_os:
+            allow = (action == 'allow')
             
-            if download_mappings and 'server_mappings' in download_data:
-                url_map = download_data['server_mappings']['url']
-                hash_map = download_data['server_mappings']['sha1']
-                path_map = os.path.join(DOWNLOAD_DIR, 'server', 'mappings', 'server.txt')
-                if not download_and_verify(url_map, hash_map, path_map, 'Server Mappings'):
-                    success = False
+    return allow
+
+def download_files(full_data):
+    download_data = full_data['downloads']
+    
+    client_jar_url = download_data['client']['url']
+    client_jar_hash = download_data['client']['sha1']
+    client_jar_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+    download_and_verify(client_jar_url, client_jar_hash, client_jar_path, 'Client JAR')
+
     print('main JAR downlaoded, downloading libraries...')
-
     libs = full_data['libraries']
+    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
 
-    base_path = os.path.join(DOWNLOAD_DIR, 'client', 'JAR', 'libraries')
+    for i, lib in enumerate(libs, 1):
+        if not should_download(lib):
+            continue 
 
-    os.makedirs(base_path, exist_ok=True)
+        downloads = lib.get('downloads', {})
 
-    for i ,lib in enumerate(libs, 1):
-        data = lib['downloads']['artifact']
+        artifact = downloads.get('artifact')
+        if artifact:
+            save_path = os.path.join(lib_base, artifact['path'])
+            download_and_verify(artifact['url'], artifact['sha1'], save_path, f"Lib {i} / {len(libs)}")
 
-        if not data:
-            continue
+        classifiers = downloads.get('classifiers', {})
+        native_key = f"natives-{OS_TYPE}{arch_suffix}"
 
-        url = data['url']
-        sha1 = data['sha1']
-        path = data['path']
+        if OS_TYPE == 'macos' and f"natives-osx{arch_suffix}" in classifiers:
+            native_key = f"natives-osx{arch_suffix}"
 
-        save_path = os.path.join(base_path, path)
+        if native_key in classifiers:
+            native = classifiers[native_key]
+            save_path = os.path.join(lib_base, native['path'])
+            download_and_verify(native['url'], native['sha1'], save_path, f"Native {i} / {len(classifiers)}")
 
-        os.makedirs(os.path.dirname(save_path), exist_ok=True)
-
-        download_and_verify(url, sha1, save_path, f'Library: {i} / {len(libs)}')
-
-    return success
-
-def download_asset_index(full_data):
+def download_assets(full_data):
     asset_info = full_data['assetIndex']
     asset_id = asset_info['id']
-
-    index_dir = os.path.join(DOWNLOAD_DIR, 'assets', 'indexes')
-    os.makedirs(index_dir, exist_ok=True)
+    index_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'assets', 'indexes', f"{asset_id}.json")
     
-    index_path = os.path.join(index_dir, f'{asset_id}.json')
-    
-    success = download_and_verify(
-        asset_info['url'], 
-        asset_info['sha1'], 
-        index_path, 
-        f'Asset Index: {asset_id}'
-    )
-    
-    if success:
+    if download_and_verify(asset_info['url'], asset_info['sha1'], index_path, f'Asset Index: {asset_id}'):
         with open(index_path, 'r') as f:
-            return json.load(f)
-    return None
+            index_data = json.load(f)
 
-def download_assets(asset_index_data):
-    assets_base_url = "https://resources.download.minecraft.net/"
-    objects_dir = os.path.join(DOWNLOAD_DIR, 'assets', 'objects')
-    os.makedirs(objects_dir, exist_ok=True)
-    total_assets = len(asset_index_data['objects'])
-    for i, (name, obj) in enumerate(asset_index_data['objects'].items(), 1):
-        hash_val = obj['hash']
-        hash_prefix = hash_val[:2]
+        assets_base_url = "https://resources.download.minecraft.net/"
+        objects_dir = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'assets', 'objects')
         
-        url = f'{assets_base_url}{hash_prefix}/{hash_val}'
-        save_path = os.path.join(objects_dir, hash_prefix, hash_val)
+        objects = index_data['objects']
+        total_assets = len(objects)
+        print(f"Found {total_assets} assets. Checking files...")
         
-        download_and_verify(url, hash_val, save_path, f'Asset Object: {i} / {total_assets}')
+        for i, (name, obj) in enumerate(objects.items(), 1):
+            hash_val = obj['hash']
+            url = f"{assets_base_url}{hash_val[:2]}/{hash_val}"
+            save_path = os.path.join(objects_dir, hash_val[:2], hash_val)
+            download_and_verify(url, hash_val, save_path, f'Asset Object: {i} / {total_assets}')
 
-def unzip_file(full_data):
-    natives_path = os.path.join(DOWNLOAD_DIR, 'client', 'natives')
-    libs = full_data['libraries']
+def extract_natives(full_data):
+    print("Extracting native binaries...")
+    natives_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'natives')
+    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
+    os.makedirs(natives_path, exist_ok=True)
 
-    for lib in libs:
-        if OS_TYPE in lib['downloads']['artifact']['path']:
-            jar_path = os.path.join(DOWNLOAD_DIR, 'client', 'JAR', 'libraries', lib['downloads']['artifact']['path'])
-            print(f"Extracting natives from: {os.path.basename(jar_path)}...")
-            with zipfile.ZipFile(jar_path, 'r') as zf:
-                zf.extractall(natives_path)
+    for lib in full_data['libraries']:
+        if not should_download(lib):
+            continue
 
-manifest = get_version_manifest()
+        classifiers = lib.get('downloads', {}).get('classifiers', {})
+        native_key = f"natives-{OS_TYPE}{arch_suffix}"
+        if OS_TYPE == 'macos' and f"natives-osx{arch_suffix}" in classifiers:
+            native_key = f"natives-osx{arch_suffix}"
 
-if manifest:
-    latest_release = manifest['latest']['release']
-
-    avaliable_versions = []
-
-    for v in manifest['versions']:
-        if v['id']:
-            avaliable_versions.append(v['id'])
-            if v['id'] == DESIRED_VERSION:
-                version_data, json_path = download_version_data(DESIRED_VERSION, manifest)
-
-def downlaod(json_path):
-    if json_path:
-        os.makedirs(f'{DOWNLOAD_DIR}/client', exist_ok=True)
-        os.makedirs(f'{DOWNLOAD_DIR}/client/JAR', exist_ok=True)
-        os.makedirs(f'{DOWNLOAD_DIR}/client/mappings', exist_ok=True)
-        os.makedirs(f'{DOWNLOAD_DIR}/server', exist_ok=True)
-        os.makedirs(f'{DOWNLOAD_DIR}/server/JAR', exist_ok=True)
-        os.makedirs(f'{DOWNLOAD_DIR}/server/mappings', exist_ok=True)
-        with open(file=json_path) as f:
-                json_file = json.load(f)
-        download_files(json_file)
-
-        index_data = download_asset_index(json_file)
-
-        download_assets(index_data)
-
-        unzip_file(json_file)
-
-    else:
-        print('Error: no json path.')
+        if native_key in classifiers:
+            jar_path = os.path.join(lib_base, classifiers[native_key]['path'])
+            if os.path.exists(jar_path):
+                with zipfile.ZipFile(jar_path, 'r') as zf:
+                    for member in zf.namelist():
+                        if not member.startswith('META-INF/'):
+                            zf.extract(member, natives_path)
 
 if __name__ == '__main__':
-    if json_path:
-        downlaod(json_path=json_path)
+    manifest = get_version_manifest()
+    if manifest:
+        version_data, json_path = download_version_data(DESIRED_VERSION, manifest)
+        
+        if version_data and json_path:
+            download_files(version_data)
+            download_assets(version_data)
+            extract_natives(version_data)
+            print(f"\n✅ Minecraft {DESIRED_VERSION} is ready!")
+        else:
+            print("Error: no json path.")
