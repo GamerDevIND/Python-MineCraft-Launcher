@@ -1,5 +1,6 @@
 import sys
 import platform
+import os
 
 USERNAME = "GamerDevIND"
 DOWNLOAD_DIR = "minecraft_downloads"
@@ -54,3 +55,11 @@ if OS_TYPE is None:
 
 classifier = OS_TYPE + arch_suffix
 print("Detected native classifier:", classifier)
+
+GAME_DIR = os.path.join(DOWNLOAD_DIR, "game") # you may change "game" to anything of your liking
+
+VERSION_DIR = os.path.join(DOWNLOAD_DIR, "versions", DESIRED_VERSION)
+
+os.makedirs(GAME_DIR, exist_ok=True)
+os.makedirs(VERSION_DIR, exist_ok=True)
+os.makedirs(DOWNLOAD_DIR, exist_ok=True)

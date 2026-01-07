@@ -3,11 +3,9 @@ import json
 import os
 import hashlib
 import zipfile
-from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE, arch_suffix
+from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE, arch_suffix, VERSION_DIR
 
 MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
-os.makedirs(DOWNLOAD_DIR, exist_ok=True)
-os.makedirs(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION), exist_ok=True)
 
 def read_profile_json():
 
@@ -39,7 +37,7 @@ def download_version_data(version_id, version_manifest):
             response.raise_for_status()
             version_data = response.json()
 
-            file_path = os.path.join(DOWNLOAD_DIR, version_id, f"{version_id}.json")
+            file_path = os.path.join(VERSION_DIR, f"{version_id}.json")
             with open(file_path, 'w') as f:
                 json.dump(version_data, f, indent=4)
             
@@ -124,12 +122,12 @@ def download_files(full_data):
     
     client_jar_url = download_data['client']['url']
     client_jar_hash = download_data['client']['sha1']
-    client_jar_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+    client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
     download_and_verify(client_jar_url, client_jar_hash, client_jar_path, 'Client JAR')
 
-    print('main JAR downlaoded, downloading libraries...')
+    print('main JAR download, downloading libraries...')
     libs = full_data['libraries']
-    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
 
     for i, lib in enumerate(libs, 1):
         if not should_download(lib):
@@ -156,14 +154,14 @@ def download_files(full_data):
 def download_assets(full_data):
     asset_info = full_data['assetIndex']
     asset_id = asset_info['id']
-    index_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'assets', 'indexes', f"{asset_id}.json")
+    index_path = os.path.join(VERSION_DIR, 'assets', 'indexes', f"{asset_id}.json")
     
     if download_and_verify(asset_info['url'], asset_info['sha1'], index_path, f'Asset Index: {asset_id}'):
         with open(index_path, 'r') as f:
             index_data = json.load(f)
 
         assets_base_url = "https://resources.download.minecraft.net/"
-        objects_dir = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'assets', 'objects')
+        objects_dir = os.path.join(VERSION_DIR, 'assets', 'objects')
         
         objects = index_data['objects']
         total_assets = len(objects)
@@ -177,8 +175,8 @@ def download_assets(full_data):
 
 def extract_natives(full_data):
     print("Extracting native binaries...")
-    natives_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'natives')
-    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
+    natives_path = os.path.join(VERSION_DIR, 'client', 'natives')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
     os.makedirs(natives_path, exist_ok=True)
 
     for lib in full_data['libraries']:
@@ -200,19 +198,34 @@ def extract_natives(full_data):
 
 if __name__ == '__main__':
     manifest = get_version_manifest()
-    if manifest:
+    if not manifest:
+        print("❌ Error: Could not fetch version manifest.")
+        exit(1)
+
+    profiles_data = read_profile_json()
+    version_exists_in_profiles = False
+
+    if profiles_data:
+        profiles = profiles_data.get("profiles", {})
+        for profile_id, profile_info in profiles.items():
+            if profile_info.get("lastVersionId") == DESIRED_VERSION:
+                version_exists_in_profiles = True
+                break
+    
+    client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+    metadata_exists = os.path.exists(os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json"))
+
+    if not (version_exists_in_profiles and os.path.exists(client_jar_path) and metadata_exists):
+        print(f"📥 Version {DESIRED_VERSION} not found or incomplete. Starting download...")
+        
         version_data, json_path = download_version_data(DESIRED_VERSION, manifest)
         
-        profiles_data = read_profile_json()
-        if profiles_data:
-            print(f"Found launcher_profiles.json with {len(profiles_data.get('profiles', {}))} profiles.")
-        else:
-            print("No launcher_profiles.json found or file is empty.")
-
-        if version_data and json_path and profiles_data and profiles_data.get('lastVersionId') != DESIRED_VERSION:
+        if version_data:
             download_files(version_data)
             download_assets(version_data)
             extract_natives(version_data)
-            print(f"\n✅ Minecraft {DESIRED_VERSION} is ready!")
+            print(f"\n✅ Minecraft {DESIRED_VERSION} successfully installed!")
         else:
-            print("Error: no json path.")
+            print(f"❌ Error: Could not retrieve data for version {DESIRED_VERSION}")
+    else:
+        print(f"✅ Version {DESIRED_VERSION} is already present in your profiles. Skipping download.")

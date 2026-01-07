@@ -2,11 +2,11 @@ import json
 import uuid 
 import subprocess 
 import os 
-from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION
+from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION, GAME_DIR, VERSION_DIR
 
-json_path = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, f"{DESIRED_VERSION}.json")
-client_jar = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
-natives_dir = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'natives')
+json_path = os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json")
+client_jar = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+natives_dir = os.path.join(VERSION_DIR, 'client', 'natives')
 
 if not os.path.exists(json_path):
     print(f"❌ Error: Metadata for {DESIRED_VERSION} not found at {json_path}")
@@ -16,7 +16,7 @@ with open(json_path, 'r') as f:
     version_data = json.load(f)
 
 def build_class_path(json_file):
-    lib_base = os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, 'client', 'JAR', 'libraries')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
     libs_to_load = []
 
     for lib in json_file['libraries']:
@@ -44,7 +44,7 @@ def create_profile_json(version_id):
     
     profile_content = {
         "name": f"Vanilla - {version_id}",
-        "gameDir": os.path.abspath(os.path.join(DOWNLOAD_DIR, version_id)),
+        "gameDir": os.path.abspath(os.path.join(GAME_DIR)),
         "lastVersionId": version_id,
         "javaArgs": f"-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G",
         "type": "custom",
@@ -79,22 +79,23 @@ if version_data:
 
     create_profile_json(DESIRED_VERSION)
     cmd = [
-        "java",
-        f"-Xmx{MAX_RAM_GB}G",
-        f"-Xms{MIN_RAM_GB}G",
-        f"-Djava.library.path={natives_dir}",
-        "-cp", classpath,
-        main_class,
-        "--version", DESIRED_VERSION,
-        "--gameDir", os.path.abspath(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION)),
-        "--assetsDir", os.path.abspath(os.path.join(DOWNLOAD_DIR, DESIRED_VERSION, "assets")),
-        "--assetIndex", asset_index,
-        "--uuid", uuid_offline,
-        "--accessToken", "0",
-        "--userType", "legacy",
-        "--versionType", "release",
-        "--username", USERNAME
-    ]
+    "java",
+    f"-Xmx{MAX_RAM_GB}G",
+    f"-Xms{MIN_RAM_GB}G",
+    f"-Djava.library.path={os.path.join(VERSION_DIR, 'client', 'natives')}",
+    "-cp", classpath,
+    main_class,
+    "--version", DESIRED_VERSION,
+    "--gameDir", os.path.abspath(GAME_DIR),
+    "--assetsDir", os.path.abspath(os.path.join(VERSION_DIR, "assets")),
+    "--assetIndex", asset_index,
+    "--uuid", uuid_offline,
+    "--accessToken", "0",
+    "--userType", "legacy",
+    "--versionType", "release",
+    "--username", USERNAME
+]
+
 
     with open('launcher.log', 'w') as log_file: 
         print('Log file opened at launcher.log')
