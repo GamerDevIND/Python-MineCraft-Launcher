@@ -6,7 +6,7 @@ USERNAME = "GamerDevIND"
 DOWNLOAD_DIR = "minecraft_downloads"
 MAX_RAM_GB = 3
 MIN_RAM_GB = 3
-DESIRED_VERSION = '1.21.10'
+DESIRED_VERSION = '1.21.8'
 
 OS_TYPE = None
 arch_suffix  = ''
@@ -56,10 +56,7 @@ if OS_TYPE is None:
 classifier = OS_TYPE + arch_suffix
 print("Detected native classifier:", classifier)
 
-GAME_DIR = os.path.join(DOWNLOAD_DIR, "game") # you may change "game" to anything of your liking
-
 VERSION_DIR = os.path.join(DOWNLOAD_DIR, "versions", DESIRED_VERSION)
 
-os.makedirs(GAME_DIR, exist_ok=True)
 os.makedirs(VERSION_DIR, exist_ok=True)
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)

@@ -2,7 +2,7 @@ import json
 import uuid 
 import subprocess 
 import os 
-from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION, GAME_DIR, VERSION_DIR
+from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION, VERSION_DIR
 
 json_path = os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json")
 client_jar = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
@@ -44,7 +44,7 @@ def create_profile_json(version_id):
     
     profile_content = {
         "name": f"Vanilla - {version_id}",
-        "gameDir": os.path.abspath(os.path.join(GAME_DIR)),
+        "gameDir": os.path.abspath(os.path.join(DOWNLOAD_DIR)),
         "lastVersionId": version_id,
         "javaArgs": f"-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G",
         "type": "custom",
@@ -86,7 +86,7 @@ if version_data:
     "-cp", classpath,
     main_class,
     "--version", DESIRED_VERSION,
-    "--gameDir", os.path.abspath(GAME_DIR),
+    "--gameDir", os.path.abspath(DOWNLOAD_DIR),
     "--assetsDir", os.path.abspath(os.path.join(VERSION_DIR, "assets")),
     "--assetIndex", asset_index,
     "--uuid", uuid_offline,
