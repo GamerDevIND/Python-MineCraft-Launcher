@@ -51,7 +51,7 @@ def download_version_data(version_id, version_manifest):
                         "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
                         "libraries": [
                             {
-                                "name": "net.fabricmc:fabric-loader:0.18.4",
+                                "name": f"net.fabricmc:fabric-loader:{get_latest_fabric_loader(DESIRED_VERSION)}",
                                 "url": "https://maven.fabricmc.net/"
                             }
                         ],
@@ -174,8 +174,8 @@ def download_files(full_data):
     if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         print("Downloading fabric-loader version...")
         
-        fabric_loader_url = "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.18.4/fabric-loader-0.18.4.jar"
-        fabric_loader_path = os.path.join(VERSION_DIR, 'client', 'JAR', 'fabric-loader-0.18.4.jar')
+        fabric_loader_url = f"https://maven.fabricmc.net/net/fabricmc/fabric-loader/{get_latest_fabric_loader(DESIRED_VERSION)}/fabric-loader-{get_latest_fabric_loader(DESIRED_VERSION)}.jar"
+        fabric_loader_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'fabric-loader-{get_latest_fabric_loader(DESIRED_VERSION)}.jar')
         download_and_verify(fabric_loader_url, None, fabric_loader_path, 'Fabric Loader')
         
         base_version = full_data.get('inheritsFrom')
