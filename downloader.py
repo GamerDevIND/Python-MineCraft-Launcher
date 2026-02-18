@@ -29,7 +29,7 @@ def get_version_manifest():
         return None
 
 def download_version_data(version_id, version_manifest):
-    if version_id.startswith('fabric-'):
+    if version_id.startswith(FABRIC_PREFIX):
         parts = version_id.split('-')
         if len(parts) >= 3:
             minecraft_version = '-'.join(parts[2:])
@@ -171,7 +171,7 @@ def should_download(lib_entry):
 
 def download_files(full_data):
     download_data = full_data['downloads']
-    if DESIRED_VERSION.startswith('fabric-'):
+    if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         print("Downloading fabric-loader version...")
         
         fabric_loader_url = "https://maven.fabricmc.net/net/fabricmc/fabric-loader/0.18.4/fabric-loader-0.18.4.jar"
@@ -247,7 +247,7 @@ def download_files(full_data):
                 save_path = os.path.join(lib_base, native['path'])
     
 def download_assets(full_data):
-    if DESIRED_VERSION.startswith('fabric-'):
+    if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         base_version = full_data.get('inheritsFrom')
         if base_version:
             base_manifest = get_version_manifest()
@@ -301,7 +301,6 @@ def is_fabric_version(version_id):
 def parse_fabric_version(version_id):
     if not is_fabric_version(version_id):
         return None, None
-    # fabric-loader-0.16.5-1.21.3
     parts = version_id[len(FABRIC_PREFIX):].split('-', 1)
     if len(parts) != 2:
         return None, None
@@ -314,7 +313,7 @@ def extract_natives(full_data):
     lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
     os.makedirs(natives_path, exist_ok=True)
 
-    if DESIRED_VERSION.startswith('fabric-loader-'):
+    if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         base_version = full_data.get('inheritsFrom')
         if base_version:
             base_manifest = get_version_manifest()
@@ -370,7 +369,7 @@ if __name__ == '__main__':
                 version_exists_in_profiles = True
                 break
     
-    if DESIRED_VERSION.startswith('fabric-'):
+    if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         base_version = DESIRED_VERSION.split('-')[-1]
         client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{base_version}.jar')
         fabric_loader_path = os.path.join(VERSION_DIR, 'client', 'JAR', 'fabric-loader-0.18.4.jar')
