@@ -372,7 +372,7 @@ if __name__ == '__main__':
     if DESIRED_VERSION.startswith(FABRIC_PREFIX):
         base_version = DESIRED_VERSION.split('-')[-1]
         client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{base_version}.jar')
-        fabric_loader_path = os.path.join(VERSION_DIR, 'client', 'JAR', 'fabric-loader-0.18.4.jar')
+        fabric_loader_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'fabric-loader{get_latest_fabric_loader(DESIRED_VERSION)}.jar')
         metadata_exists = os.path.exists(os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json"))
         has_files = os.path.exists(client_jar_path) and os.path.exists(fabric_loader_path)
     else:
