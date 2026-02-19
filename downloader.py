@@ -51,7 +51,7 @@ def download_version_data(version_id, version_manifest):
                         "mainClass": "net.fabricmc.loader.impl.launch.knot.KnotClient",
                         "libraries": [
                             {
-                                "name": f"net.fabricmc:fabric-loader:{get_latest_fabric_loader(DESIRED_VERSION)}",
+                                "name": f"net.fabricmc:fabric-loader:{get_latest_fabric_loader(parse_fabric_version(DESIRED_VERSION))}",
                                 "url": "https://maven.fabricmc.net/"
                             }
                         ],
