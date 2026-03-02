@@ -5,7 +5,7 @@ import os
 from configs import USERNAME, DOWNLOAD_DIR, MAX_RAM_GB, MIN_RAM_GB, DESIRED_VERSION, VERSION_DIR
 
 json_path = os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json")
-client_jar = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+client_jar = os.path.join(VERSION_DIR, 'client', f'{DESIRED_VERSION}.jar')
 natives_dir = os.path.join(VERSION_DIR, 'client', 'natives')
 
 if not os.path.exists(json_path):
@@ -16,7 +16,7 @@ with open(json_path, 'r') as f:
     version_data = json.load(f)
 
 def build_class_path(json_file):
-    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'libraries')
     libs_to_load = []
 
     for lib in json_file['libraries']:
@@ -40,6 +40,10 @@ def read_profile_json():
 
 def create_profile_json(version_id):
     existing_data = read_profile_json()
+    uuid_ = str(uuid.uuid4()) 
+    if existing_data:
+        uuid_ = existing_data.get("clientToken", str(uuid.uuid4()))
+
     profile_key = f"Profile-{version_id}"
     
     profile_content = {
@@ -48,18 +52,18 @@ def create_profile_json(version_id):
         "lastVersionId": version_id,
         "javaArgs": f"-Xmx{MAX_RAM_GB}G -Xms{MIN_RAM_GB}G",
         "type": "custom",
-        "created": str(uuid.uuid4())[:8]
+        "created": uuid_[:8]
     }
 
     if existing_data:
         if existing_data.get("profiles", {}).get(profile_key) == profile_content:
-            return
+            return uuid_
         data_to_save = existing_data
     else:
         data_to_save = {
             "profiles": {},
             "selectedProfile": "",
-            "clientToken": str(uuid.uuid4()),
+            "clientToken": uuid_,
             "authenticationDatabase": {}
         }
 
@@ -70,14 +74,14 @@ def create_profile_json(version_id):
     with open(profile_path, 'w') as f:
         json.dump(data_to_save, f, indent=4)
     print(f"✅ Profile for {version_id} updated in: {profile_path}")
+    return uuid_
 
 if version_data: 
     classpath = build_class_path(version_data) 
     main_class = version_data['mainClass'] 
     asset_index = version_data['assetIndex']['id']
-    uuid_offline = str(uuid.uuid4()) 
 
-    create_profile_json(DESIRED_VERSION)
+    uuid_offline = create_profile_json(DESIRED_VERSION)
     cmd = [
     "java",
     f"-Xmx{MAX_RAM_GB}G",
@@ -87,7 +91,7 @@ if version_data:
     main_class,
     "--version", DESIRED_VERSION,
     "--gameDir", os.path.abspath(DOWNLOAD_DIR),
-    "--assetsDir", os.path.abspath(os.path.join(VERSION_DIR, "assets")),
+    "--assetsDir", os.path.abspath(os.path.join(DOWNLOAD_DIR, "assets")),
     "--assetIndex", asset_index,
     "--uuid", uuid_offline,
     "--accessToken", "0",

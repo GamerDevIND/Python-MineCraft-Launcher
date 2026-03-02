@@ -122,12 +122,12 @@ def download_files(full_data):
     
     client_jar_url = download_data['client']['url']
     client_jar_hash = download_data['client']['sha1']
-    client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+    client_jar_path = os.path.join(VERSION_DIR, 'client', f'{DESIRED_VERSION}.jar')
     download_and_verify(client_jar_url, client_jar_hash, client_jar_path, 'Client JAR')
 
     print('main JAR download, downloading libraries...')
     libs = full_data['libraries']
-    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'libraries')
 
     for i, lib in enumerate(libs, 1):
         if not should_download(lib):
@@ -154,14 +154,14 @@ def download_files(full_data):
 def download_assets(full_data):
     asset_info = full_data['assetIndex']
     asset_id = asset_info['id']
-    index_path = os.path.join(VERSION_DIR, 'assets', 'indexes', f"{asset_id}.json")
+    index_path = os.path.join(DOWNLOAD_DIR, 'assets', 'indexes', f"{asset_id}.json")
     
     if download_and_verify(asset_info['url'], asset_info['sha1'], index_path, f'Asset Index: {asset_id}'):
         with open(index_path, 'r') as f:
             index_data = json.load(f)
 
         assets_base_url = "https://resources.download.minecraft.net/"
-        objects_dir = os.path.join(VERSION_DIR, 'assets', 'objects')
+        objects_dir = os.path.join(DOWNLOAD_DIR, 'assets', 'objects')
         
         objects = index_data['objects']
         total_assets = len(objects)
@@ -176,7 +176,7 @@ def download_assets(full_data):
 def extract_natives(full_data):
     print("Extracting native binaries...")
     natives_path = os.path.join(VERSION_DIR, 'client', 'natives')
-    lib_base = os.path.join(VERSION_DIR, 'client', 'JAR', 'libraries')
+    lib_base = os.path.join(VERSION_DIR, 'client', 'libraries')
     os.makedirs(natives_path, exist_ok=True)
 
     for lib in full_data['libraries']:
@@ -212,7 +212,7 @@ if __name__ == '__main__':
                 version_exists_in_profiles = True
                 break
     
-    client_jar_path = os.path.join(VERSION_DIR, 'client', 'JAR', f'{DESIRED_VERSION}.jar')
+    client_jar_path = os.path.join(VERSION_DIR, 'client',  f'{DESIRED_VERSION}.jar')
     metadata_exists = os.path.exists(os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json"))
 
     if not (version_exists_in_profiles and os.path.exists(client_jar_path) and metadata_exists):

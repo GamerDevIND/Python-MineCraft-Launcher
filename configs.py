@@ -4,9 +4,9 @@ import os
 
 USERNAME = "GamerDevIND"
 DOWNLOAD_DIR = "minecraft_downloads"
-MAX_RAM_GB = 3
+MAX_RAM_GB = 4
 MIN_RAM_GB = 3
-DESIRED_VERSION = '1.21.8'
+DESIRED_VERSION = '1.21.11'
 
 OS_TYPE = None
 arch_suffix  = ''
