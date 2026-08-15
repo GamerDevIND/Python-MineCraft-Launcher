@@ -18,8 +18,6 @@ from configs import (
     USE_FABRIC
 )
 
-from pprint import pp
-
 injector_path = os.path.abspath(os.path.join(DOWNLOAD_DIR, "authlib-injector-1.2.7.jar"))
 
 if not os.path.exists(vanilla_json_path):
@@ -206,9 +204,6 @@ cmd = [
     "--username",
     USERNAME
 ]
-
-
-pp(cmd)
 
 with open("launcher.log", "w") as log_file:
 
