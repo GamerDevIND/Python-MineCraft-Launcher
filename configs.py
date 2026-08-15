@@ -4,9 +4,14 @@ import os
 
 USERNAME = "GamerDevIND"
 DOWNLOAD_DIR = "minecraft_downloads"
-MAX_RAM_GB = 4
+MAX_RAM_GB = 3
 MIN_RAM_GB = 3
-DESIRED_VERSION = '1.21.11'
+DESIRED_VERSION = '26.2'
+
+USE_FABRIC = False
+FABRIC_VERSION = "0.19.3"
+
+FABRIC_VERSION_ID = f"fabric-loader-{FABRIC_VERSION}-{DESIRED_VERSION}"
 
 OS_TYPE = None
 arch_suffix  = ''
@@ -56,7 +61,34 @@ if OS_TYPE is None:
 classifier = OS_TYPE + arch_suffix
 print("Detected native classifier:", classifier)
 
-VERSION_DIR = os.path.join(DOWNLOAD_DIR, "versions", DESIRED_VERSION)
+vanilla_version_dir = os.path.join(
+    DOWNLOAD_DIR, "versions", DESIRED_VERSION
+)
 
-os.makedirs(VERSION_DIR, exist_ok=True)
+fabric_version_dir = os.path.join(
+    DOWNLOAD_DIR, "versions", FABRIC_VERSION_ID
+)
+
+vanilla_json_path = os.path.join(
+    vanilla_version_dir, f"{DESIRED_VERSION}.json"
+)
+
+fabric_json_path = os.path.join(
+    fabric_version_dir, f"{FABRIC_VERSION_ID}.json"
+)
+
+client_jar = os.path.join(
+    vanilla_version_dir,
+    "client",
+    f"{DESIRED_VERSION}.jar"
+)
+
+natives_dir = os.path.join(
+    vanilla_version_dir,
+    "client",
+    "natives"
+)
+
 os.makedirs(DOWNLOAD_DIR, exist_ok=True)
+os.makedirs(fabric_version_dir, exist_ok=True)
+os.makedirs(vanilla_version_dir, exist_ok=True)

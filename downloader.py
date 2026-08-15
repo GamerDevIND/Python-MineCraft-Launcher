@@ -3,7 +3,7 @@ import json
 import os
 import hashlib
 import zipfile
-from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE, arch_suffix, VERSION_DIR
+from configs import DOWNLOAD_DIR, DESIRED_VERSION, OS_TYPE, arch_suffix, vanilla_version_dir
 
 MANIFEST_URL = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json"
 
@@ -26,6 +26,15 @@ def get_version_manifest():
     except requests.exceptions.RequestException as e:
         print(f"Error fetching manifest: {e}")
         return None
+    
+def fetch_fabric_component(mc_version):
+    meta_url = f"https://meta.fabricmc.net/v2/versions/loader/{mc_version}"
+    loaders = requests.get(meta_url).json()
+    
+    loader_version = loaders[0]['loader']['version']
+    
+    profile_url = f"https://meta.fabricmc.net/v2/versions/loader/{mc_version}/{loader_version}/profile/json"
+    return requests.get(profile_url).json()
 
 def download_version_data(version_id, version_manifest):
     for version in version_manifest['versions']:
@@ -37,7 +46,7 @@ def download_version_data(version_id, version_manifest):
             response.raise_for_status()
             version_data = response.json()
 
-            file_path = os.path.join(VERSION_DIR, f"{version_id}.json")
+            file_path = os.path.join(vanilla_version_dir, f"{version_id}.json")
             with open(file_path, 'w') as f:
                 json.dump(version_data, f, indent=4)
             
@@ -122,12 +131,12 @@ def download_files(full_data):
     
     client_jar_url = download_data['client']['url']
     client_jar_hash = download_data['client']['sha1']
-    client_jar_path = os.path.join(VERSION_DIR, 'client', f'{DESIRED_VERSION}.jar')
+    client_jar_path = os.path.join(vanilla_version_dir, 'client', f'{DESIRED_VERSION}.jar')
     download_and_verify(client_jar_url, client_jar_hash, client_jar_path, 'Client JAR')
 
     print('main JAR download, downloading libraries...')
     libs = full_data['libraries']
-    lib_base = os.path.join(VERSION_DIR, 'client', 'libraries')
+    lib_base = os.path.join(vanilla_version_dir, 'client', 'libraries')
 
     for i, lib in enumerate(libs, 1):
         if not should_download(lib):
@@ -175,8 +184,8 @@ def download_assets(full_data):
 
 def extract_natives(full_data):
     print("Extracting native binaries...")
-    natives_path = os.path.join(VERSION_DIR, 'client', 'natives')
-    lib_base = os.path.join(VERSION_DIR, 'client', 'libraries')
+    natives_path = os.path.join(vanilla_version_dir, 'client', 'natives')
+    lib_base = os.path.join(vanilla_version_dir, 'client', 'libraries')
     os.makedirs(natives_path, exist_ok=True)
 
     for lib in full_data['libraries']:
@@ -212,8 +221,8 @@ if __name__ == '__main__':
                 version_exists_in_profiles = True
                 break
     
-    client_jar_path = os.path.join(VERSION_DIR, 'client',  f'{DESIRED_VERSION}.jar')
-    metadata_exists = os.path.exists(os.path.join(VERSION_DIR, f"{DESIRED_VERSION}.json"))
+    client_jar_path = os.path.join(vanilla_version_dir, 'client',  f'{DESIRED_VERSION}.jar')
+    metadata_exists = os.path.exists(os.path.join(vanilla_version_dir, f"{DESIRED_VERSION}.json"))
 
     if not (version_exists_in_profiles and os.path.exists(client_jar_path) and metadata_exists):
         print(f"📥 Version {DESIRED_VERSION} not found or incomplete. Starting download...")
