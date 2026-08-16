@@ -14,11 +14,9 @@ from configs import (
     fabric_json_path,
     client_jar,
     natives_dir,
-    fabric_version_dir,
+    ely_by_uuid,
     USE_FABRIC
 )
-
-injector_path = os.path.abspath(os.path.join(DOWNLOAD_DIR, "authlib-injector-1.2.7.jar"))
 
 if not os.path.exists(vanilla_json_path):
     print(f"❌ Error: Vanilla metadata not found at {vanilla_json_path}")
@@ -70,12 +68,7 @@ def build_class_path(*json_files):
                 version = parts[2]
                 classifier = f"-{parts[3]}" if len(parts) > 3 else ""
                 
-                rel_path = os.path.join(
-                    group_path,
-                    artifact_name,
-                    version,
-                    f"{artifact_name}-{version}{classifier}.jar"
-                )
+                rel_path = os.path.join(group_path, artifact_name, version, f"{artifact_name}-{version}{classifier}.jar")
 
             lib_path = None
             for base in candidate_bases:
@@ -89,8 +82,6 @@ def build_class_path(*json_files):
                 if normalized not in seen:
                     libs_to_load.append(lib_path)
                     seen.add(normalized)
-            else:
-                print("MISSING:", rel_path)
 
     libs_to_load.append(client_jar)
     return os.pathsep.join(libs_to_load)
@@ -162,7 +153,7 @@ def create_profile_json(version_id, uuid__=None):
 
     return uuid_
 
-uuid_offline = create_profile_json(DESIRED_VERSION,)
+uuid_offline = create_profile_json(DESIRED_VERSION)
 
 
 if USE_FABRIC:
@@ -182,7 +173,6 @@ cmd = [
     f"-Xmx{MAX_RAM_GB}G",
     f"-Xms{MIN_RAM_GB}G",
     f"-Djava.library.path={natives_dir}",
-    f"-javaagent:{injector_path}=ely.by",
     *fabric_jvm_args,
     "-cp",
     classpath,
