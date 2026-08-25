@@ -14,7 +14,6 @@ from configs import (
     fabric_json_path,
     client_jar,
     natives_dir,
-    ely_by_uuid,
     USE_FABRIC
 )
 
